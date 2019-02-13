@@ -8,13 +8,14 @@ import mcgui.*;
  */
 public class ExampleCaster extends Multicaster {
 
+
     /**
      * No initializations needed for this simple one
      */
     public void init() {
         mcui.debug("The network has "+hosts+" hosts!");
     }
-        
+
     /**
      * The GUI calls this module to multicast a message
      */
@@ -22,18 +23,18 @@ public class ExampleCaster extends Multicaster {
         for(int i=0; i < hosts; i++) {
             /* Sends to everyone except itself */
             if(i != id) {
-                bcom.basicsend(i,new ExampleMessage(id, messagetext));
+                bcom.basicsend(i, new ExampleMessage(id, messagetext));
             }
         }
         mcui.debug("Sent out: \""+messagetext+"\"");
         mcui.deliver(id, messagetext, "from myself!");
     }
-    
+
     /**
      * Receive a basic message
      * @param message  The message received
      */
-    public void basicreceive(int peer,Message message) {
+    public void basicreceive(int peer, Message message) {
         mcui.deliver(peer, ((ExampleMessage)message).text);
     }
 
