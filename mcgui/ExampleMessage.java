@@ -6,7 +6,7 @@ import mcgui.*;
  *
  * @author Andreas Larsson &lt;larandr@chalmers.se&gt;
  */
-public class ExampleMessage extends Message {
+public class ExampleMessage extends Message implements Comparable<ExampleMessage>{
 
     String text;
     int seqNum;
@@ -39,4 +39,14 @@ public class ExampleMessage extends Message {
     }
 
     public static final long serialVersionUID = 0;
+
+
+    @Override
+    public int compareTo(ExampleMessage eMsg) {
+        if (eMsg.globalSeq == this.globalSeq) {
+            return this.sender - eMsg.getSender();
+        } else {
+            return this.globalSeq - eMsg.globalSeq;
+        }
+    }
 }

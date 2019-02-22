@@ -14,26 +14,23 @@ public class ExampleCaster extends Multicaster {
     int localSeq;
     int proposedSeq;
 
-    HashMap<Integer, ExampleMessage> hold_back_queue;
+    ArrayList<ExampleMessage> hold_back_queue;
     HashMap<Integer, List<Integer>> received;
-    HashMap<Integer, List<ExampleMessage>> testing;
-    ArrayList<Integer> rcvd_proposals;
+    ArrayList<ArrayList<Integer>> rcvd_proposals;
 
     /**
      * No initializations needed for this simple one
      */
     public void init() {
 
-        hold_back_queue = new HashMap<Integer, ExampleMessage>();
+        hold_back_queue = new ArrayList<ExampleMessage>();
         received = new HashMap<Integer, List<Integer>>();
-        testing = new HashMap<Integer, List<ExampleMessage>>();
 
         for(int i = 0; i < hosts; i++) {
             received.put(i, new ArrayList<Integer>());
-            testing.put(i, new ArrayList<ExampleMessage>());
         }
 
-        rcvd_proposals = new ArrayList<Integer>();
+        rcvd_proposals = new ArrayList<ArrayList<Integer>>();
         proposedSeq = 0;
         globalSeq = 0;
         localSeq = 0;
@@ -54,6 +51,7 @@ public class ExampleCaster extends Multicaster {
         }
 
         seqNum++;
+        rcvd_proposals.add(new ArrayList<Integer>());
     }
 
     /**
@@ -83,14 +81,16 @@ public class ExampleCaster extends Multicaster {
         }
 
         else if(msg.phase == 2) {
-            rcvd_proposals.add(msg.proposed);
+
+            
+            rcvd_proposals.get(msg.seqNum).add(msg.proposed);
 
             // If we have received all the proposals
-            if(rcvd_proposals.size() == (hosts - 1)) {
+            if(rcvd_proposals.get(msg.seqNum).size() == (hosts - 1)) {
 
                 // Set the global sequence id to the maximum proposed
-                globalSeq = Collections.max(rcvd_proposals);
-                rcvd_proposals.clear();
+                globalSeq = Collections.max(rcvd_proposals.get(msg.seqNum));
+                rcvd_proposals.get(msg.seqNum).clear();
                 //mcui.debug("I choose: "+globalSeq);
                 // Initiate phase three
                 msg.phase = 3;
@@ -106,6 +106,7 @@ public class ExampleCaster extends Multicaster {
 
         else if(msg.phase == 3) {
             globalSeq = Math.max(msg.globalSeq, globalSeq);
+            msg.globalSeq = globalSeq;
             //mcui.debug("We consent on: "+globalSeq);
 
             // Add the message to the hold_back_queue
@@ -151,9 +152,31 @@ public class ExampleCaster extends Multicaster {
 
     public void pre_deliver(ExampleMessage msg, int seq) {
 
-        hold_back_queue.put(seq, msg);
+        hold_back_queue.add(msg);
+        Collections.sort(hold_back_queue);
 
-        //mcui.debug("Sender: " + hold_back_queue.get(seq).getSender() + " msg seq: " + hold_back_queue.get(seq).seqNum + " agreed sequence: " + seq);
+        System.out.println("------ JAG ÄR ID: " + id + " -------");
+        System.out.println();
+        System.out.println();
+        System.out.println();
+        System.out.println();
+        System.out.println();
+        System.out.println();
+        System.out.println();
+
+
+        try {
+            for (int i = 1; i < hold_back_queue.size(); i++) {
+                if (hold_back_queue.get(i - 1).globalSeq != seq){
+                    mcui.deliver(hold_back_queue.get(i - 1).getSender(), Integer.toString(hold_back_queue.get(i - 1).seqNum));   //.getText());
+                    hold_back_queue.remove(i-1);
+                }
+            }
+        } catch(Exception e) {
+            //lol
+        }  
+    //    mcui.debug("Sender: " + hold_back_queue.get(i).getSender() + " msg seq: " + hold_back_queue.get(i).seqNum + " agreed sequence: " + seq);
+        
     }
 
     public void add_to_received(ExampleMessage msg) {
