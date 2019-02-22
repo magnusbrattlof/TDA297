@@ -6,43 +6,20 @@ import mcgui.*;
  *
  * @author Andreas Larsson &lt;larandr@chalmers.se&gt;
  */
-public class ExampleMessage extends Message {
+public class ExampleMessage extends Message implements Comparable<ExampleMessage>{
         
     private String status;
     private String text;
     private int sequence;
-    
-    private int localSeq;
-    private int localID;
-    private int globalSeq;
-    private int globalID;
-    private int proposeSeq;
-    private int proposeID;
+    private int localSequence;
 
     //messagetext = "req" + ":" + messagetext + ":" + id + ":" + vectorArray[id]+1;
-    public ExampleMessage(String status, String text, int sender, int sequence) {
+    public ExampleMessage(String status, String text, int sender, int sequence, int localSequence) {
         super(sender);
         this.status = status;
         this.text = text;
         this.sequence = sequence;
-    }
-
-    // messagetext = "seq" + ":" + id + ":" + vectorArray[id]+1 ":" + global[0] + ":" + global[1];
-    public ExampleMessage(String status, int localSeq, int localID, int globalSeq, int globalID) {
-        super(localID);
-        this.status = status;
-        this.localSeq = localSeq;
-        this.localID = localID;
-        this.globalSeq = globalSeq;
-        this.globalID = globalID;
-    }
-
-    //messagetext = "pro" + ":" + proposeSeq + ":" + proposeID;
-    public ExampleMessage(String status, int proposeSeq, int proposeID) {
-        super(proposeID);
-        this.status = status;
-        this.proposeSeq = proposeSeq;
-        this.proposeID = proposeID;
+        this.localSequence = localSequence;
     }
 
     /**
@@ -62,26 +39,21 @@ public class ExampleMessage extends Message {
         return sequence;
     }
 
-    public String getStatus(){
+    public String getStatus() {
         return status;
     }
-    public int getLocalSeq(){
-        return localSeq;
+
+    public int getLocalSequence() {
+        return localSequence;
     }
-    public int getLocalID(){
-        return localID;
-    }
-    public int getGlobalSeq(){
-        return globalSeq;
-    }
-    public int getGlobalID(){
-        return globalID;
-    }
-    public int getProposeSeq(){
-        return proposeSeq;
-    }
-    public int getProposeID(){
-        return proposeID;
+
+    @Override
+    public int compareTo(ExampleMessage eMessage) {
+        if (eMessage.getSequence() == this.sequence) {
+            return this.sender - eMessage.getSender();
+        } else {
+            return this.sequence - eMessage.getSequence();
+        }
     }
 
     public static final long serialVersionUID = 0;

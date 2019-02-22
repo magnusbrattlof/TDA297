@@ -1,7 +1,6 @@
 
 import mcgui.*;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 
 /**
  * Simple example of how to use the Multicaster interface.
@@ -11,36 +10,23 @@ import java.util.HashMap;
  * @author Mange;
  */
 public class ExampleCaster extends Multicaster {
-
-    // locical clock of each process and a buffer used to guarantee FIFO per each process
-    // TODO-mid-prio: might have to redo some of this as the format of all messages are differnet now, probably need to save more data so to also achive total order
-    private int[] localSeqArray; 
-    private ArrayList<ArrayList<ExampleMessage>> buffer;
-    private ArrayList<ExampleMessage> proposalArray;
-
-    // this works as a int tuple, where the first value is logical clock-value/sequence number and the second is id of proposer
-    private int globalSeq; // aka "A"
-    private int globalID;
-    private int proposeSeq; // aka "P"
-    private int proposeID; 
-
     
+    private int globalSequence = 0;
+    private int globalID = 0;
+    private int localSequence = 0;
+    private int p = 0;
+    private int a = 0;
+
+    private ArrayList<ArrayList<ExampleMessage>> proposalBuffer;
+    private ArrayList<ExampleMessage> finalBuffer;
 
     public void init() {
         mcui.debug("The network has " + hosts + " hosts!");
-        localSeqArray = new int[hosts];
-        buffer = new ArrayList<ArrayList<ExampleMessage>>(hosts);
-        for (int i = 0; i < hosts; i++) {
-            buffer.add(new ArrayList<ExampleMessage>());
+        proposalBuffer = new ArrayList<ArrayList<ExampleMessage>>();
+        for (int i = 0; i < hosts; i ++) {
+            proposalBuffer.add(new ArrayList<ExampleMessage>());
         }
-        proposalArray = new ArrayList<ExampleMessage>();
-
-        globalSeq = 0;
-        globalID = 0;
-        
-        proposeSeq = 0;
-        proposeID = 0;
-
+        finalBuffer = new ArrayList<ExampleMessage>();
     }
 
     /**
@@ -48,44 +34,32 @@ public class ExampleCaster extends Multicaster {
      */
     public void cast(String messagetext) {
 
-        //TODO: buffer upp messages being sent until curnet one that is waiting for propsalsas is finished?!?!?!
-
-
         // phase 1 -- requesting clockvalues, sening the msg and a unique identifier (id, potential local clock vlaue) NOTE: logic of local clock value might be worng
-        ExampleMessage eMessage = new ExampleMessage("req", messagetext, id , localSeqArray[id]+1);
+        ExampleMessage eMessage = new ExampleMessage("req", messagetext, id, globalSequence, localSequence);
         send(eMessage);
+        localSequence ++;
     }
 
     /**
      * Actual method that broadcasts messages
      * @param message  The message received
      */
-    private void send(Message message) {
-        ExampleMessage eMessage = (ExampleMessage) message;
+    private void send(ExampleMessage message) {
         for(int i=0; i < hosts; i++) {
             /* Sends to everyone except itself */
             if(i != id) {
-                bcom.basicsend(i, eMessage);
+                bcom.basicsend(i, message);
             }
-            //bcom.basicsend(i, eMessage);
         }
         //mcui.debug("Sent out: \""+eMessage.getText()+"\"");
         //mcui.deliver(id, eMessage.getText(), "from myself!");
     }
 
-
-
-
-    /* THIS DIFFERS FROM LAST COURSE IN THE WAY THAT WE HAVE TO CONSIDER HOW TO SEND THE MESSAGES AS WELL AS THE DS ALGO. DID NOT EVEN NOTICE THIS... MAYBE BECAUSE I WE ARE GETTING SO USED TO DS? */
-
-
-
-
     /**
      * Receive a basic message
      * @param message  The message received
      */
-    public void basicreceive(int peer,Message message) {    //TODO-low-prio: implement Reliable-broadcast!!!
+    public void basicreceive(int peer, Message message) {    //TODO-low-prio: implement Reliable-broadcast!!!
         ExampleMessage eMessage = (ExampleMessage)message;
 
         // PHASE 1 -- recives request for proposal and message, sending propsal
@@ -93,15 +67,13 @@ public class ExampleCaster extends Multicaster {
             phase1(eMessage);
         
         // PHASE 2 -- recives proposal, broadcasting the new message with new correct clock-value
-        // NOTE: does not send the message again, only the unique msg identifier to find the msg in some buffer and what global sequence it should have
         } else if (eMessage.getStatus().equals("pro")) {
             phase2(eMessage);
+
             
-
         // PHASE 3 -- recives global clovk value/sequence for a message, i.e. actually deliver msg
-        } else if (eMessage.getStatus().equals("seq")) {
+        } else if (eMessage.getStatus().equals("fin")) {
             phase3(eMessage);
-
 
         // else error
         } else {
@@ -111,86 +83,72 @@ public class ExampleCaster extends Multicaster {
 
     // PHASE 1 -- recives request for proposal and message; sending propsal and saving message. message is maped ot sender and sender local sequence
     public void phase1(ExampleMessage eMessage) {
-        
-        // save all text from recived messages, mapped to sender and sender local sequence
-        if (!buffer.get(eMessage.getSender()).contains(eMessage)) {
-            buffer.get(eMessage.getSender()).add(eMessage);
-        }
-        
-        int tmp = Math.max(proposeSeq, globalSeq) + 1;
-        if ((tmp - 1) == globalSeq) { // was global biggest?
-            proposeSeq = tmp;
-            proposeID = globalID;
-        } else {
-            proposeSeq = tmp;
-        }
-        send( new ExampleMessage("pro", proposeSeq, proposeID));
+        p = Math.max(a, p) + 1;
+        ExampleMessage answer = new ExampleMessage("pro", eMessage.getText(), id, p, eMessage.getLocalSequence());
+        bcom.basicsend(eMessage.getSender(), answer); // TODO: r-boradcast this?
     }
 
     // PHASE 2 -- recives proposal, broadcasting the new message with new correct clock-value
     public void phase2(ExampleMessage eMessage) {
-        if (proposalArray.size() != hosts - 1) {
-            proposalArray.add(eMessage);
-            //todo: others had added in here aswell...
-        } 
-        if (proposalArray.size() == (hosts - 1)) {
 
-            int tmpSeq = 0;
-            int tmpID = 0;
-            for (ExampleMessage eMsg : proposalArray) { 
-                if (eMsg.getProposeSeq() == tmpSeq && eMsg.getProposeID() > tmpID) {
-                    tmpID = eMsg.getProposeID();
-                } else if (eMsg.getProposeSeq() > tmpSeq){
-                    tmpSeq = eMsg.getProposeSeq();
-                    tmpID = eMsg.getProposeID();
+        int index = eMessage.getLocalSequence() % hosts;
+
+        if (!proposalBuffer.get(index).contains(eMessage)) {
+            proposalBuffer.get(index).add(eMessage);
+        }
+
+        if (proposalBuffer.get(index).size() == hosts - 1) {
+            int propMax = 0; 
+            int propID = 0;
+            for (ExampleMessage tmp : proposalBuffer.get(index)) {
+                if (tmp.getSequence() > propMax) { 
+                    propMax = tmp.getSequence();        // tmp.getSender() proposese tmp.getSequence()
+                    propID = tmp.getSender();
                 }
             }
-            globalSeq = tmpSeq;
-            globalID = tmpID;
-
-            System.out.println("globalSeq - " + globalSeq + " --- globalID - " + globalID);
+            globalSequence = propMax;
+            globalID = propID;
+            //System.out.println("I AM " + id + " ----  my txt should be same as you wronte in my client: " +eMessage.getText());
+            ExampleMessage answer = new ExampleMessage("fin", eMessage.getText(), globalID, globalSequence, localSequence);    // TODO: test if "id" can be changed to "propID"
             
-            localSeqArray[id] ++;
-            send( new ExampleMessage("seq", localSeqArray[id], id, globalSeq, globalID));
-            proposalArray.clear(); // this array is reused for each new message from this process, this is why we can not handle more than one message cast() at the time 
-            // TODO-low-prio: fix wo that a process can hanlde multipe of its own message proposals at the time 
-        }
+            
+            deliver2self(answer);
+            
+            
+            send(answer); // TODO: r-boradcast this? 
+            proposalBuffer.get(index).clear();
+        } 
     }
 
-    // PHASE 3 -- recives global clovk value/sequence for a message, i.e. actually deliver msg
+    // PHASE 3 -- recives final clovk value/sequence for a message, i.e. actually deliver msg
     public void phase3(ExampleMessage eMessage) {
-        
-        System.out.println("eMessage.getLocalID()   --- " + eMessage.getLocalID());
-        
-        // find the correct message from buffer where text of all messages are saved
-        for (ExampleMessage eMsg : buffer.get(eMessage.getLocalID())) {
-            System.out.println("2");
-            if (eMsg.getLocalSeq() == eMessage.getLocalSeq() ) { //check FIFO: && eMsg.getLocalSeq()
-
-                System.out.println("3");
-//                System.out.println("eMsg.getSender() : " + eMsg.getSender() + "  --  eMsg.getText(): " + eMsg.getText() );
-                
-                // TODO: when to deliver, buffer?
-                mcui.deliver(eMsg.getSender(), eMsg.getText());
-            }
-        }
-        
-
-        // check local FIFO:
-        
+        //System.out.println("I AM " + id + " ----  I just recived a final deliver on text:  " + eMessage.getText() + " ---- from: " + eMessage.getSender() + " ---- proposed id: " + eMessage.getSequence());
+        a = Math.max(eMessage.getSequence(), a);
+        deliver2self(eMessage);
     }
-/*
-    private void checkBuffer(ExampleMessage latestMsg){
-        for (ExampleMessage bufferMessage : buffer) {
-            if (bufferMessage.getSender() == latestMsg.getSender() && bufferMessage.getSequence() == localSeqArray[latestMsg.getSender()] + 1) {
-                localSeqArray[bufferMessage.getSender()] = bufferMessage.getSequence();
-                mcui.debug("Added value FROM buffer");
-                checkBuffer(bufferMessage);
 
+    public void deliver2self(ExampleMessage eMessage) {
+        if (!finalBuffer.contains(eMessage)){   // TODO: not optimal solution to duplicated enteies problem...
+            finalBuffer.add(eMessage);
+            Collections.sort(finalBuffer); 
+        } 
+
+        //String str1 = ("NEW FOR-LOOP BELOW --- " + id);
+        //mcui.debug(str1);
+        for (int i = 0; i < finalBuffer.size(); i ++) {
+            //System.out.println("I AM " + id + " --- my buffer is -> text: " + finalBuffer.get(i).getText() + " global sequence: " + finalBuffer.get(i).getSequence() + " - id:  " + finalBuffer.get(i).getSender() );
+            //String str2 = ("I AM " + id + " --- my buffer is -> text: " + finalBuffer.get(i).getText() + " global sequence: " + finalBuffer.get(i).getSequence() + " - id:  " + finalBuffer.get(i).getSender() );
+            //mcui.debug(str2);
+
+            if (i > hosts && finalBuffer.get(i-1).getSequence() < eMessage.getSequence()) {
+                mcui.deliver(finalBuffer.get(i-1).getSender(), finalBuffer.get(i-1).getText());   //TODO: not sure if this "getSender()" is who we think it is... the plot thickens...
+                finalBuffer.remove(i-1);
+                Collections.sort(finalBuffer); 
             }
         }
     }
-*/
+
+
     /**
      * Signals that a peer is down and has been down for a while to
      * allow for messages taking different paths from this peer to
