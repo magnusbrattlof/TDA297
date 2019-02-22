@@ -10,11 +10,19 @@ public class ExampleMessage extends Message {
 
     String text;
     int seqNum;
+    int phase;
+    int proposed;
+    int proposer;
+    int globalSeq;
 
-    public ExampleMessage(int sender, String text, int seqNum) {
+    public ExampleMessage(int sender, String text, int seqNum, int phase, int proposed, int proposer, int globalSeq) {
         super(sender);
         this.text = text;
         this.seqNum = seqNum;
+        this.phase = phase;
+        this.proposed = proposed;
+        this.proposer = proposer;
+        this.globalSeq = globalSeq;
     }
 
     /**
