@@ -120,7 +120,9 @@ public class ExampleCaster extends Multicaster {
         int tmp = Math.max(proposeSeq, globalSeq) + 1;
         if ((tmp - 1) == globalSeq) { // was global biggest?
             proposeSeq = tmp;
-            proposeID = tmp;
+            proposeID = globalID;
+        } else {
+            proposeSeq = tmp;
         }
         send( new ExampleMessage("pro", proposeSeq, proposeID));
     }
@@ -133,7 +135,6 @@ public class ExampleCaster extends Multicaster {
         } 
         if (proposalArray.size() == (hosts - 1)) {
 
-            System.out.println("asd");
             int tmpSeq = 0;
             int tmpID = 0;
             for (ExampleMessage eMsg : proposalArray) { 
@@ -146,8 +147,11 @@ public class ExampleCaster extends Multicaster {
             }
             globalSeq = tmpSeq;
             globalID = tmpID;
+
+            System.out.println("globalSeq - " + globalSeq + " --- globalID - " + globalID);
+            
             localSeqArray[id] ++;
-            send( new ExampleMessage("seq", id , localSeqArray[id], globalSeq, globalID));
+            send( new ExampleMessage("seq", localSeqArray[id], id, globalSeq, globalID));
             proposalArray.clear(); // this array is reused for each new message from this process, this is why we can not handle more than one message cast() at the time 
             // TODO-low-prio: fix wo that a process can hanlde multipe of its own message proposals at the time 
         }
@@ -157,7 +161,6 @@ public class ExampleCaster extends Multicaster {
     public void phase3(ExampleMessage eMessage) {
         
         System.out.println("eMessage.getLocalID()   --- " + eMessage.getLocalID());
-        System.out.println("buffer.get(eMessage.getLocalID()).getLocalSeq() ---- " +buffer.get(eMessage.getLocalID()).getLocalSeq());
         
         // find the correct message from buffer where text of all messages are saved
         for (ExampleMessage eMsg : buffer.get(eMessage.getLocalID())) {
