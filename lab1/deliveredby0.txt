@@ -1,9 +1,0 @@
-0: -- vector clock value: 1 -- messagetext: stress-0-0
-0: -- vector clock value: 2 -- messagetext: stress-0-1
-0: -- vector clock value: 3 -- messagetext: stress-0-2
-2: -- vector clock value: 1 -- messagetext: stress-2-0
-2: -- vector clock value: 2 -- messagetext: stress-2-1
-2: -- vector clock value: 3 -- messagetext: stress-2-2
-1: -- vector clock value: 1 -- messagetext: stress-1-0
-1: -- vector clock value: 2 -- messagetext: stress-1-1
-1: -- vector clock value: 3 -- messagetext: stress-1-2

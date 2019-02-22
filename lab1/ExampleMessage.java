@@ -11,6 +11,7 @@ public class ExampleMessage extends Message {
     private String status;
     private String text;
     private int sequence;
+    
     private int localSeq;
     private int localID;
     private int globalSeq;
@@ -20,24 +21,25 @@ public class ExampleMessage extends Message {
 
     //messagetext = "req" + ":" + messagetext + ":" + id + ":" + vectorArray[id]+1;
     public ExampleMessage(String status, String text, int sender, int sequence) {
+        super(sender);
         this.status = status;
         this.text = text;
-        super(sender);
         this.sequence = sequence;
     }
 
     // messagetext = "seq" + ":" + id + ":" + vectorArray[id]+1 ":" + global[0] + ":" + global[1];
     public ExampleMessage(String status, int localSeq, int localID, int globalSeq, int globalID) {
+        super(localID);
         this.status = status;
         this.localSeq = localSeq;
         this.localID = localID;
         this.globalSeq = globalSeq;
         this.globalID = globalID;
-
     }
 
     //messagetext = "pro" + ":" + proposeSeq + ":" + proposeID;
     public ExampleMessage(String status, int proposeSeq, int proposeID) {
+        super(proposeID);
         this.status = status;
         this.proposeSeq = proposeSeq;
         this.proposeID = proposeID;
