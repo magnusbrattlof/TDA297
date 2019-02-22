@@ -16,7 +16,7 @@ public class ExampleCaster extends Multicaster {
 
     HashMap<Integer, ExampleMessage> hold_back_queue;
     HashMap<Integer, List<Integer>> received;
-    HashMap<Integer, List<Integer>> testing;
+    HashMap<Integer, List<ExampleMessage>> testing;
     ArrayList<Integer> rcvd_proposals;
 
     /**
@@ -26,11 +26,11 @@ public class ExampleCaster extends Multicaster {
 
         hold_back_queue = new HashMap<Integer, ExampleMessage>();
         received = new HashMap<Integer, List<Integer>>();
-        testing = new HashMap<Integer, List<Integer>>();
+        testing = new HashMap<Integer, List<ExampleMessage>>();
 
         for(int i = 0; i < hosts; i++) {
             received.put(i, new ArrayList<Integer>());
-            testing.put(i, new ArrayList<Integer>());
+            testing.put(i, new ArrayList<ExampleMessage>());
         }
 
         rcvd_proposals = new ArrayList<Integer>();
@@ -150,14 +150,9 @@ public class ExampleCaster extends Multicaster {
     }
 
     public void pre_deliver(ExampleMessage msg, int seq) {
-        testing.get(msg.getSender()).add(msg.seqNum);
-        msg.globalSeq = seq;
 
-        for(int i = 0; i <= hosts; i++) {
-            for(int j = 0; j <= testing.get(i).size(); j++) {
-                mcui.debug(""+testing.get(i);
-            }
-        }
+        hold_back_queue.put(seq, msg);
+
         //mcui.debug("Sender: " + hold_back_queue.get(seq).getSender() + " msg seq: " + hold_back_queue.get(seq).seqNum + " agreed sequence: " + seq);
     }
 
