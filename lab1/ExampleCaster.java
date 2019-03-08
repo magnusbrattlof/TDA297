@@ -227,11 +227,7 @@ public class ExampleCaster extends Multicaster {
                     if (eMsg.getDeliverable() == true) {
 
                         mcui.deliver(eMsg.getSender(), eMsg.getText());
-
-                        // TODO: this is not nice code... leaves the Arraylist filled with null-objects instead of empty...
-                        al.remove(eMsg.getProposerID());
-                        // to not destroy the indexing
-                        al.add(eMsg.getProposerID(), new ExampleMessage(-1));
+                        al.set(eMsg.getProposerID(), new ExampleMessage(-1));
                         
                         // recursivly call method till next !deliverable is found
                         deliver();
