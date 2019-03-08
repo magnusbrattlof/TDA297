@@ -155,17 +155,22 @@ public class ExampleCaster extends Multicaster {
 
         Boolean breakBool = false;
 
+        checkBacklog(eMessage);
+
         // Assumes FIFO
         for (ArrayList<ExampleMessage> al : backlog) {
             for (ExampleMessage eMsg : al) {
 
                 // check if messeage is allready in backlog, if so always write over with newer message
-                if (eMsg != null && eMsg.getSender() == eMessage.getSender() && eMsg.getLocalSequence() == eMessage.getLocalSequence()) {
+                if (eMsg.getSender() != -1 && eMsg.getSender() == eMessage.getSender() && eMsg.getLocalSequence() == eMessage.getLocalSequence()) {
                     
-                    
-                    //al.remove(eMsg);
-                    add2BacklogHelper(eMessage);
-                      //                                      backlog.get(eMessage.getGlobalSequence()).add(eMessage.getProposerID(), eMessage);
+
+
+                    // remove message at old position
+                    al.set(eMsg.getProposerID(), new ExampleMessage(-1));
+
+                    // override with new message
+                    backlog.get(eMessage.getGlobalSequence()).set(eMessage.getProposerID(), eMessage);
                     
                     breakBool = true;
                     break;
@@ -176,78 +181,14 @@ public class ExampleCaster extends Multicaster {
 
         // message was not in backlog
         if (!breakBool) {
-            /*
-            // initiate all necessary ArrayLists
-            for (int j = 0; j <= eMessage.getGlobalSequence(); j ++ ) {
             
-                // check if the "row" (array list) allready excists
-                try {
-                    backlog.get(j);
-                } catch (Exception e) {
-                    
-                    // add new "row"/ArrayList to backlog
-                    backlog.add(j, new ArrayList<ExampleMessage>());
-                    System.out.println("added new arraylist to backlog");
-                }
-            }
-
-            // initiate all necessary insider-ArrayLists
-            for (int i = 0; i <= eMessage.getProposerID(); i ++) {
-                
-                // check if message at index i is initiated 
-                try {
-                    backlog.get(eMessage.getGlobalSequence()).get(i);
-                } catch (Exception e) {
-                    backlog.get(eMessage.getGlobalSequence()).add(i, null);
-                }
-            }
-*/
-            // add new message to backlog
-            //backlog.get(eMessage.getGlobalSequence()).add(eMessage.getProposerID(), eMessage);
-            add2BacklogHelper(eMessage);
-            
+            // override with new message
+            backlog.get(eMessage.getGlobalSequence()).set(eMessage.getProposerID(), eMessage);
         }
-
-
         deliver();
-
-
-/*
-
-
-
-        if (backlog.get(eMessage.getGlobalSequence()) ) {
-            backlog.add(eMessage);
-        } else {
-
-        }
-        
-
-        //TODO: check if it actually is sorted
-
-
-
-        if (!backlogBuffer.contains(eMessage)){   // TODO: not optimal solution to duplicated enteies problem...
-            backlogBuffer.add(eMessage);
-            Collections.sort(backlogBuffer); 
-        } 
-
-        //String str1 = ("NEW FOR-LOOP BELOW --- " + id);
-        //mcui.debug(str1);
-        for (int i = 0; i < backlogBuffer.size(); i ++) {
-            //System.out.println("I AM " + id + " --- my buffer is -> text: " + finalBuffer.get(i).getText() + " global sequence: " + finalBuffer.get(i).getSequence() + " - id:  " + finalBuffer.get(i).getSender() );
-            //String str2 = ("I AM " + id + " --- my buffer is -> text: " + finalBuffer.get(i).getText() + " global sequence: " + finalBuffer.get(i).getSequence() + " - id:  " + finalBuffer.get(i).getSender() );
-            //mcui.debug(str2);
-
-            if (i > hosts && backlogBuffer.get(i-1).getSequence() < eMessage.getSequence()) {
-                mcui.deliver(backlogBuffer.get(i-1).getSender(), backlogBuffer.get(i-1).getText());   //TODO: not sure if this "getSender()" is who we think it is... the plot thickens...
-                backlogBuffer.remove(i-1);
-                Collections.sort(finalBuffer); 
-            }
-        }*/
     }
 
-    public void add2BacklogHelper(ExampleMessage eMessage) {
+    public void checkBacklog(ExampleMessage eMessage) {
         
         // initiate all necessary ArrayLists/X
         for (int j = 0; j <= eMessage.getGlobalSequence(); j ++ ) {
@@ -267,15 +208,9 @@ public class ExampleCaster extends Multicaster {
             try {
                 backlog.get(eMessage.getGlobalSequence()).get(i);
             } catch (Exception e) {
-                backlog.get(eMessage.getGlobalSequence()).add(i, null);
+                backlog.get(eMessage.getGlobalSequence()).add(i, new ExampleMessage(-1));
             }
         }
-
-        // override with new message
-        //backlog.get(eMessage.getGlobalSequence()).remove(eMessage.getProposerID()); // TODO: before or after?
-        backlog.get(eMessage.getGlobalSequence()).add(eMessage.getProposerID(), eMessage);
-        backlog.get(eMessage.getGlobalSequence()).remove(eMessage.getProposerID() + 1);
-
     }
 
     public void deliver() {
@@ -285,21 +220,25 @@ public class ExampleCaster extends Multicaster {
         for (ArrayList<ExampleMessage> al : backlog) {
             for (ExampleMessage eMsg : al) {
                 
+                //System.out.println("I AM : " + id + " --- is eMsg null? " + eMsg + " --- eMsg.deliverable ? " + eMsg.getDeliverable());
+
                 // finds first avalable value
-                if (eMsg != null) {
+                if (eMsg.getSender() != -1) {
                     if (eMsg.getDeliverable() == true) {
-                        
+
                         mcui.deliver(eMsg.getSender(), eMsg.getText());
 
                         // TODO: this is not nice code... leaves the Arraylist filled with null-objects instead of empty...
                         al.remove(eMsg.getProposerID());
-                        al.add(eMsg.getProposerID(), null);
+                        // to not destroy the indexing
+                        al.add(eMsg.getProposerID(), new ExampleMessage(-1));
                         
                         // recursivly call method till next !deliverable is found
                         deliver();
 
-                        breakBool  = true;
+                        
                     } 
+                    breakBool  = true;
                     break;
                 } 
             }

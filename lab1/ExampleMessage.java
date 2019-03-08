@@ -26,6 +26,11 @@ public class ExampleMessage extends Message implements Comparable<ExampleMessage
         this.deliverable = deliverable;
     }
 
+    // ugly code... but what the hell
+    public ExampleMessage(int sender) {
+        super(sender);
+    }
+
     /**
      * Returns the text of the message only. The toString method can
      * be implemented to show additional things useful for debugging
