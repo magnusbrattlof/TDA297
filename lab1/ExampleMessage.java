@@ -1,4 +1,3 @@
-
 import mcgui.*;
 
 /**
@@ -8,18 +7,23 @@ import mcgui.*;
  */
 public class ExampleMessage extends Message implements Comparable<ExampleMessage>{
         
+    private int proposerID;
     private String status;
     private String text;
-    private int sequence;
+    //private int sequence;
     private int localSequence;
+    private int globalSequence;
+    private Boolean deliverable;
 
     //messagetext = "req" + ":" + messagetext + ":" + id + ":" + vectorArray[id]+1;
-    public ExampleMessage(String status, String text, int sender, int sequence, int localSequence) {
+    public ExampleMessage(String status, String text, int sender, int proposerID, int localSequence, int globalSequence, Boolean deliverable) {
         super(sender);
         this.status = status;
         this.text = text;
-        this.sequence = sequence;
+        this.proposerID = proposerID;
         this.localSequence = localSequence;
+        this.globalSequence = globalSequence;
+        this.deliverable = deliverable;
     }
 
     /**
@@ -31,13 +35,17 @@ public class ExampleMessage extends Message implements Comparable<ExampleMessage
         return text;
     }
     
+    public int getProposerID() {
+        return proposerID;
+    }
+
     /**
      * Returns vectorVlaue of message, this info together with id of
      * sender complets all info needed for vector clock 
-     */
+     * 
     public int getSequence() {
         return sequence;
-    }
+    } */
 
     public String getStatus() {
         return status;
@@ -47,12 +55,20 @@ public class ExampleMessage extends Message implements Comparable<ExampleMessage
         return localSequence;
     }
 
+    public int getGlobalSequence() {
+        return globalSequence;
+    }
+
+    public Boolean getDeliverable() {
+        return deliverable;
+    }
+
     @Override
     public int compareTo(ExampleMessage eMessage) {
-        if (eMessage.getSequence() == this.sequence) {
+        if (eMessage.getLocalSequence() == this.localSequence) {
             return this.sender - eMessage.getSender();
         } else {
-            return this.sequence - eMessage.getSequence();
+            return this.localSequence - eMessage.getLocalSequence();
         }
     }
 
