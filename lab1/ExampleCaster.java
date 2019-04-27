@@ -22,8 +22,13 @@ public class ExampleCaster extends Multicaster {
     private ArrayList<ArrayList<ExampleMessage>> backlog;
     private ArrayList<ExampleMessage> backlogBuffer;
 
+    private ArrayList<ExampleMessage> currnetMsgArray = new ArrayList<>();
+
+    private int peers;
+
     public void init() {
         mcui.debug("The network has " + hosts + " hosts!");
+        peers = hosts;
         proposalBuffer = new ArrayList<ArrayList<ExampleMessage>>();
         //for (int i = 0; i < hosts; i ++) {
             //proposalBuffer.add(new ArrayList<ExampleMessage>());
@@ -41,10 +46,17 @@ public class ExampleCaster extends Multicaster {
         // phase 1 Sends Requesst for Proposal -- requesting clockvalues, sening the msg and a unique identifier (id, potential local clock vlaue) NOTE: logic of local clock value might be worng
         ExampleMessage eMessage = new ExampleMessage("req", messagetext, id, id, localSequence, globalSequence, false);
         add2Backlog(eMessage);
-        send(eMessage);
+        
+        if (peers == 1) { //send to self if everyone is dead 
+            phase2RP(eMessage);
+        } else {
+            send(eMessage);
+        }
         
         // This is last so as to utilize the initial value 0.
         localSequence ++;
+        globalSequence ++;
+
     }
 
     /**
@@ -56,7 +68,7 @@ public class ExampleCaster extends Multicaster {
             /* Sends to everyone except itself */
             if(i != id) {
                 bcom.basicsend(i, message);
-            }
+            } 
         }
         //mcui.debug("Sent out: \""+eMessage.getText()+"\"");
         //mcui.deliver(id, eMessage.getText(), "from myself!");
@@ -66,7 +78,7 @@ public class ExampleCaster extends Multicaster {
      * Receive a basic message
      * @param message  The message received
      */
-    public void basicreceive(int peer, Message message) {    //TODO-low-prio: implement Reliable-broadcast!!!
+    public void basicreceive(int peer, Message message) { 
         ExampleMessage eMessage = (ExampleMessage)message;
 
         // PHASE 2 Recives Proposal -- recives proposal, broadcasting the new message with new correct clock-value
@@ -90,62 +102,73 @@ public class ExampleCaster extends Multicaster {
     // PHASE 2 Recives Proposal -- recives proposal, broadcasting the new message with new correct clock-value
     public void phase2RP(ExampleMessage eMessage) {
 
-        // WTF is this!?!?!?!
-        //int index = eMessage.getLocalSequence() % hosts; 
-
-
-        //  ========================== TODO: start debugging here? ==========================
-
         try {
             proposalBuffer.get(eMessage.getLocalSequence());
         } catch (Exception e) {
-            proposalBuffer.add(new ArrayList<ExampleMessage>());
+            for (int i = 0; i <= eMessage.getLocalSequence(); i++) {
+                try {
+                    proposalBuffer.get(i);
+                } catch (Exception e2) {
+                    proposalBuffer.add(new ArrayList<ExampleMessage>());
+                }
+            }
+            
         } 
 
         if (!proposalBuffer.get(eMessage.getLocalSequence()).contains(eMessage)) {
             proposalBuffer.get(eMessage.getLocalSequence()).add(eMessage);
         }
         
+
         // checks if all proposals are in
         // TODO: fix hosts-check to cope with dead nodes
-        if (proposalBuffer.get(eMessage.getLocalSequence()).size() == hosts - 1) {
-            int propMax = 0; 
-            int propID = 0;
-            for (ExampleMessage tmp : proposalBuffer.get(eMessage.getLocalSequence())) {
-                if (tmp.getGlobalSequence() > propMax) { 
-                    propMax = tmp.getGlobalSequence();        // tmp.getSender() proposese tmp.getSequence()
-                    propID = tmp.getProposerID();
+        currnetMsgArray.add(eMessage);
+        phase2RPinner();
+    }
+
+    // this is used in "basicpeerdown"
+    private void phase2RPinner(){
+        //if (proposalBuffer.get(currnetMsg.getLocalSequence()) == null) {
+          //      phase2RP(currnetMsg);
+           // }
+
+        for (ExampleMessage currnetMsg : currnetMsgArray) {
+            if (proposalBuffer.get(currnetMsg.getLocalSequence()).size() == peers -1) {
+                int propMax = 0; 
+                int propID = 0;
+                for (ExampleMessage tmp : proposalBuffer.get(currnetMsg.getLocalSequence())) {
+                    if (tmp.getGlobalSequence() > propMax) { 
+                        propMax = tmp.getGlobalSequence();       
+                        propID = tmp.getProposerID();
+                    }
                 }
+                globalSequence = propMax; 
+                globalID = propID; 
+
+                // constructs messages that is deliverable and has final global seq
+                ExampleMessage answer = new ExampleMessage("fin", currnetMsg.getText(), currnetMsg.getSender(), propID, currnetMsg.getLocalSequence(), propMax, true);    
+                
+                add2Backlog(answer);
+                send(answer); 
+
+                proposalBuffer.get(currnetMsg.getLocalSequence()).clear();
+                //currnetMsgArray.remove(0);
             }
-            globalSequence = propMax; 
-            globalID = propID; //TODO: not need?
-            //System.out.println("I AM " + id + " ----  my txt should be same as you wronte in my client: " +eMessage.getText());
-
-            // constructs messages that is deliverable and has final global seq
-            ExampleMessage answer = new ExampleMessage("fin", eMessage.getText(), eMessage.getSender(), propID, eMessage.getLocalSequence(), propMax, true);    // TODO: test if "id" can be changed to "propID"
-            
-            add2Backlog(answer);
-            send(answer); // TODO: r-boradcast this? 
-
-            proposalBuffer.get(eMessage.getLocalSequence()).clear();
-        } 
+        }
     }
 
     // PHASE 2 Recives Requesst for Proposal -- recives request for proposal and message; sending propsal and saving message. message is maped ot sender and sender local sequence
     public void phase2RRFP(ExampleMessage eMessage) {
         p = Math.max(a, p) + 1;
         ExampleMessage answer = new ExampleMessage("pro", eMessage.getText(), eMessage.getSender(), id, eMessage.getLocalSequence(), p, false);
-        bcom.basicsend(eMessage.getSender(), answer); // TODO: r-boradcast this? use send?
+        bcom.basicsend(eMessage.getSender(), answer); 
         
         add2Backlog(answer);
-        
-        //System.out.println("----- my node id: " + id + " --- --- answer.id:  " + answer.getSender() + "  --- --- eMessage.id : " + eMessage.getSender() );
 
     }
 
     // PHASE 3 -- recives final clovk value/sequence for a message, i.e. actually deliver msg
     public void phase3(ExampleMessage eMessage) {
-        //System.out.println("I AM " + id + " ----  I just recived a final deliver on text:  " + eMessage.getText() + " ---- from: " + eMessage.getSender() + " ---- proposed id: " + eMessage.getSequence());
         a = Math.max(eMessage.getGlobalSequence(), a);
 
         add2Backlog(eMessage); 
@@ -220,12 +243,12 @@ public class ExampleCaster extends Multicaster {
         for (ArrayList<ExampleMessage> al : backlog) {
             for (ExampleMessage eMsg : al) {
                 
-                //System.out.println("I AM : " + id + " --- is eMsg null? " + eMsg + " --- eMsg.deliverable ? " + eMsg.getDeliverable());
 
                 // finds first avalable value
                 if (eMsg.getSender() != -1) {
-                    if (eMsg.getDeliverable() == true) {
-
+                    System.out.println("msg:"+eMsg.getText());
+                    if (eMsg.getDeliverable() == true || peers == 1) {
+                        System.out.println("inner-msg:"+eMsg.getText());
                         mcui.deliver(eMsg.getSender(), eMsg.getText());
                         al.set(eMsg.getProposerID(), new ExampleMessage(-1));
                         
@@ -251,5 +274,9 @@ public class ExampleCaster extends Multicaster {
      */
     public void basicpeerdown(int peer) {
         mcui.debug("Peer "+peer+" has been dead for a while now!");
+        peers -- ;
+
+        phase2RPinner();
+        deliver();
     }
 }
