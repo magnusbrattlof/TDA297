@@ -1,0 +1,10 @@
+WHAT WE DID
+
+- TODO: 
+    -   Verify that stress test still works
+    -   Verify that stress test works even with crashing nodes
+
+- WHAT WE DID:
+    - Fixed crashing nodes, works with sending only one message
+    - Works even with only one node left in the network
+    - 
