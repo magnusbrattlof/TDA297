@@ -8,3 +8,6 @@ WHAT WE DID
     - Fixed crashing nodes, works with sending only one message
     - Works even with only one node left in the network
     - 
+
+2019-05-17
+	- Prints out the whole backlog when there is only one node left.
