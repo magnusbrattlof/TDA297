@@ -45,11 +45,12 @@ public class ExampleCaster extends Multicaster {
 
         // phase 1 Sends Requesst for Proposal -- requesting clockvalues, sening the msg and a unique identifier (id, potential local clock vlaue) NOTE: logic of local clock value might be worng
         ExampleMessage eMessage = new ExampleMessage("req", messagetext, id, id, localSequence, globalSequence, false);
-        add2Backlog(eMessage);
+        
         
         if (peers == 1) { //send to self if everyone is dead 
-            phase2RP(eMessage);
+            mcui.deliver(eMessage.getSender(), eMessage.getText());
         } else {
+            add2Backlog(eMessage);
             send(eMessage);
         }
         
@@ -68,7 +69,10 @@ public class ExampleCaster extends Multicaster {
             /* Sends to everyone except itself */
             if(i != id) {
                 bcom.basicsend(i, message);
-            } 
+            }
+        }
+        if (peers == 1) {
+            bcom.basicsend(message.getSender(), message);
         }
         //mcui.debug("Sent out: \""+eMessage.getText()+"\"");
         //mcui.deliver(id, eMessage.getText(), "from myself!");
@@ -276,7 +280,9 @@ public class ExampleCaster extends Multicaster {
         mcui.debug("Peer "+peer+" has been dead for a while now!");
         peers -- ;
 
-        phase2RPinner();
+        if (peers != 1) {
+            phase2RPinner();
+        }
         deliver();
     }
 }
